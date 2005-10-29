@@ -27,7 +27,6 @@ int vm_free(int argc, char *argv[]){
         case 'o': old_fmt = 1; break;
         case 's': rtime = 1000000 * atof(optarg); break;
         case 't': total = 1; break;
-	case 'V': display_version(); exit(0);
         default:
 	  fprintf(stderr, "usage: %s [-b|-k|-m] [-o] [-s delay] [-t] [-V]\n", argv[0]);
 	  return 1;
