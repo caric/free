@@ -1,9 +1,6 @@
-/* free.c - a /proc implementation of free */
-/* Dec14/92 by Brian Edmonds */
-/* Thanks to Rafal Maszkowski for the Total line */
+#include <free.h>
+#include <vm_stat.h>
 
-#include "proc/sysinfo.h"
-#include "proc/version.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -11,12 +8,12 @@
 #include <fcntl.h>
 #include <getopt.h>
 
-#define S(X) ( ((unsigned long long)(X) << 10) >> byteshift)
+#define S(X) ( ((X) << 10) >> byteshift)
 
 static int byteshift = 10;
 static int total = 0;
 
-int main(int argc, char *argv[]){
+int vm_free(int argc, char *argv[]){
     int i;
     int old_fmt = 0;
     int rtime = 0;
@@ -38,21 +35,21 @@ int main(int argc, char *argv[]){
 
     do {
         meminfo();
-        printf("             total       used       free     shared    buffers     cached\n");
+        printf("             total       used       free     shared    wired     inactive\n");
         printf(
             "%-7s %10Ld %10Ld %10Ld %10Ld %10Ld %10Ld\n", "Mem:",
             S(kb_main_total),
             S(kb_main_used),
             S(kb_main_free),
             S(kb_main_shared),
-            S(kb_main_buffers),
-            S(kb_main_cached)
+            S(kb_main_wired),
+            S(kb_main_inactive)
         );
         if(!old_fmt){
             printf(
-                "-/+ buffers/cache: %10Ld %10Ld\n", 
-                S(kb_main_used-kb_main_buffers-kb_main_cached),
-                S(kb_main_free+kb_main_buffers+kb_main_cached)
+                "-/+      inactive: %10Ld %10Ld\n", 
+                S(kb_main_used-kb_main_inactive),
+                S(kb_main_free+kb_main_inactive)
             );
         }
         printf(
