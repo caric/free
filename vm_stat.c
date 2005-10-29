@@ -1,3 +1,5 @@
+#include <vm_stat.h>
+
 /*
  * Copyright (c) 1999 Apple Computer, Inc. All rights reserved.
  *
@@ -37,6 +39,8 @@
  *
  *  25-mar-99	A.Ramesh at Apple
  *		Ported to MacOS X
+ *  13-nov-2003	Kevin Geiss
+ *		Modified for use by the 'free' front end.
  ************************************************************************
  */
 
@@ -44,6 +48,20 @@
 #include <stdio.h>
 
 #include <mach/mach.h>
+
+// Global variables we want to fill in for free.
+/* obsolete */
+unsigned long kb_main_shared = 0;
+/* old but still kicking -- the important stuff */
+unsigned long kb_main_wired = 0;
+unsigned long kb_main_inactive = 0;
+unsigned long kb_main_free = 0;
+unsigned long kb_main_total = 0;
+unsigned long kb_swap_free = 0;
+unsigned long kb_swap_total = 0;
+/* derived values */
+unsigned long kb_swap_used = 0;
+unsigned long kb_main_used = 0;
 
 vm_statistics_data_t	vm_stat, last;
 int	percent;
@@ -59,70 +77,17 @@ void pstat(char *str, int n);
 void print_stats();
 void get_stats(struct vm_statistics *stat);
 
-int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+void meminfo()
 {
-
-	pgmname = argv[0];
-	delay = 0;
-
-
-	setlinebuf (stdout);
-
-	if (argc == 2) {
-		if (sscanf(argv[1], "%d", &delay) != 1)
-			usage();
-		if (delay < 0)
-			usage();
-	}
-
 	myHost = mach_host_self();
 
+	// Get the page size.
 	if(host_page_size(mach_host_self(), &pageSize) != KERN_SUCCESS) {
 		fprintf(stderr, "%s: failed to get pagesize; defaulting to 4K.\n", pgmname);
 		pageSize = 4096;
 	}	
 
-	if (delay == 0) {
-		snapshot();
-	}
-	else {
-		while (1) {
-			print_stats();
-			sleep(delay);
-		}
-	}
-	exit(0);
-}
-
-void
-usage()
-{
-	fprintf(stderr, "usage: %s [ repeat-interval ]\n", pgmname);
-	exit(1);
-}
-
-void
-banner()
-{
-	get_stats(&vm_stat);
-	printf("Mach Virtual Memory Statistics: ");
-	printf("(page size of %d bytes, cache hits %d%%)\n",
-				pageSize, percent);
-	printf("%6s %6s %4s %4s %8s %8s %8s %8s %8s %8s\n",
-		"free",
-		"active",
-		"inac",
-		"wire",
-		"faults",
-		"copy",
-		"zerofill",
-		"reactive",
-		"pageins",
-		"pageout");
-	bzero(&last, sizeof(last));
+	snapshot();
 }
 
 void
@@ -130,21 +95,19 @@ snapshot()
 {
 
 	get_stats(&vm_stat);
-	printf("Mach Virtual Memory Statistics: (page size of %d bytes)\n",
-				pageSize);
+	pageSize >>= 10;
+	kb_main_total = (vm_stat.free_count +
+			vm_stat.active_count +
+			vm_stat.inactive_count +
+			vm_stat.wire_count) * pageSize;
+	kb_main_used = (vm_stat.active_count +
+			vm_stat.inactive_count +
+			vm_stat.wire_count) * pageSize;
+	kb_main_free = vm_stat.free_count * pageSize;
+	kb_main_inactive = vm_stat.inactive_count * pageSize;
+	kb_main_wired = vm_stat.wire_count * pageSize;
 
-	pstat("Pages free:", vm_stat.free_count);
-	pstat("Pages active:", vm_stat.active_count);
-	pstat("Pages inactive:", vm_stat.inactive_count);
-	pstat("Pages wired down:", vm_stat.wire_count);
-	pstat("\"Translation faults\":", vm_stat.faults);
-	pstat("Pages copy-on-write:", vm_stat.cow_faults);
-	pstat("Pages zero filled:", vm_stat.zero_fill_count);
-	pstat("Pages reactivated:", vm_stat.reactivations);
-	pstat("Pageins:", vm_stat.pageins);
-	pstat("Pageouts:", vm_stat.pageouts);
-	printf("Object cache: %d hits of %d lookups (%d%% hit rate)\n",
-			vm_stat.hits, vm_stat.lookups, percent);
+	kb_main_shared = get_shared_kb();
 }
 
 void
@@ -153,32 +116,6 @@ pstat(str, n)
 	int	n;
 {
 	printf("%-25s %10d.\n", str, n);
-}
-
-void
-print_stats()
-{
-	static count = 0;
-
-	if (count++ == 0)
-		banner();
-
-	if (count > 20)
-		count = 0;
-
-	get_stats(&vm_stat);
-	printf("%6d %6d %4d %4d %8d %8d %8d %8d %8d %8d\n",
-		vm_stat.free_count,
-		vm_stat.active_count,
-		vm_stat.inactive_count,
-		vm_stat.wire_count,
-		vm_stat.faults - last.faults,
-		vm_stat.cow_faults - last.cow_faults,
-		vm_stat.zero_fill_count - last.zero_fill_count,
-		vm_stat.reactivations - last.reactivations,
-		vm_stat.pageins - last.pageins,
-		vm_stat.pageouts - last.pageouts);
-	last = vm_stat;
 }
 
 void
