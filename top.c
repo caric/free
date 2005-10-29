@@ -42,6 +42,7 @@
  *
  */
 
+#include <mach/mach.h>
 #include <top.h>
 
 unsigned long get_shared_kb()
