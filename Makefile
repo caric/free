@@ -30,10 +30,13 @@ DIRS=
 LIBS=
 
 HDR=	\
+	free.h	\
+	top.h	\
 	vm_stat.h
 
 SRC=	\
 	free.$(EXT) \
+	top.$(EXT) \
 	vm_stat.$(EXT) \
 	main.$(EXT)
 
